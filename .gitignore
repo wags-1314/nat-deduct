@@ -4,3 +4,4 @@ parser.cc
 parser.hh
 parser.xml
 lex.yy.c
+.cache/

@@ -6,11 +6,13 @@
 #include <cstdlib>
 
 int yycolumn = 1;
-#define YY_USER_ACTION                              \
+std::string yyline;
+#define YY_USER_ACTION                               \
     yylloc.first_line = yylloc.last_line = yylineno; \
-    yylloc.first_column = yycolumn;                 \
-    yylloc.last_column = yycolumn + yyleng - 1;     \
-    yycolumn += yyleng;
+    yylloc.first_column = yycolumn;                  \
+    yylloc.last_column = yycolumn + yyleng - 1;      \
+    yycolumn += yyleng;                              \
+    yyline += std::string(yytext);
 
 extern int yyerror(std::string);
 %}
@@ -51,7 +53,7 @@ extern int yyerror(std::string);
 ":"            { return COL; }
 "|-"           { return TRN; }
 [ \t]          { /* do nothing */ }
-\n             { yycolumn = 1; }
+\n             { yycolumn = 1; yyline = std::string(""); }
 .              { yyerror("Unknown character."); }
 %%
 

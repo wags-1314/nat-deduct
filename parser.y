@@ -21,6 +21,7 @@ extern int yylex();
 extern int yyparse();
 extern int yylineno;
 extern int yycolumn;
+extern std::string yyline;
 int yyerror(std::string);
 int lyyerror(YYLTYPE, std::string);
 void reasoning_check(Ast *, Reason, YYLTYPE);
@@ -110,6 +111,7 @@ Stmt: NUM COL Expr SCOL Reasoning {
     $$.ast_val = $1.ast_val;
     $$.reason_val = $3.reason_val;
     reasoning_check($$.ast_val, $$.reason_val, $3.loc_val);
+    std::cout << yyline;
 }   ;
 
 Reasoning: HYP { 
