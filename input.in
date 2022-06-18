@@ -1,0 +1,8 @@
+Theorem. 
+	(P -> Q) /\ P |- Q.
+Proof.
+    (P -> Q) /\ P; Hypothesis.
+    P -> Q; AndElimLeft: 1.
+    P; AndElimRight: 1.
+    Q; ImplElim: 2, 3.
+Qed.
