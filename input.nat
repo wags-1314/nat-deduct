@@ -1,0 +1,8 @@
+Theorem. 
+	(A <-> B) /\ B |- A.
+Proof.
+    (A <-> B) /\ B; Hyp.
+    A <-> B; /\EL: 1.
+    B; /\ER: 1.
+    A; IffElimLeft: 2, 3.
+Qed.

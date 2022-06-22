@@ -5,3 +5,4 @@ parser.hh
 parser.xml
 lex.yy.c
 .cache/
+nat-deduct.sublime*

@@ -4,7 +4,10 @@
 %code requires {
 
 #include <iostream>
+#include <iomanip>
+#include <cstddef>
 #include "parser_util.hh"
+#include "terminal.hh"
 
 }
 
@@ -30,6 +33,10 @@ std::vector<Ast *> stmts;
 std::stack<Ast *> scope;
 Ast *hypo, *goal;
 
+std::string file_name;
+
+bool has_error_occurred = false;
+
 }
 
 %token TERM NUM
@@ -41,6 +48,9 @@ Ast *hypo, *goal;
 %token HYP REP ASS
 %token AINTRO AELIML AELIMR
 %token IMPLINTRO IMPLELIM
+%token NOTINTRO NOTELIM
+%token ORINTROL ORINTROR ORELIM
+%token IFFINTRO IFFELIML IFFELIMR
 
 %left IFF
 %left IF
@@ -55,6 +65,7 @@ Theorem: THRM DOT Expr {
 } TRN Expr[goal] {
     goal = $goal.ast_val;
 } DOT PRF DOT Proof QED {
+
     if (!scope.empty()) {
         yyerror("All assumptions have not been discharged.");
     }
@@ -64,10 +75,13 @@ Theorem: THRM DOT Expr {
                 "the result of the proof don't match.");
     }
 
-    std::cout << "Theorem is correct!\n";
+    if (has_error_occurred) {
+        std::cout << fg::red << "Proof is not correct!\n" << fg::reset;
+    } else {
+        std::cout << fg::green << "Proof is correct!\n" << fg::reset;
+    }
 } DOT  | THRM DOT TRN Expr[goal] {
     goal = $goal.ast_val;
-    std::cout << *$goal.ast_val << '\n';
 } DOT PRF DOT Proof QED {
     if (!scope.empty()) {
         yyerror("All assumptions have not been discharged.");
@@ -78,7 +92,11 @@ Theorem: THRM DOT Expr {
                 "the result of the proof don't match.");
     }
 
-    std::cout << "Theorem is correct!\n";
+    if (has_error_occurred) {
+        std::cout << fg::red << "Proof is not correct!\n" << fg::reset;
+    } else {
+        std::cout << fg::green << "Proof is correct!\n" << fg::reset;
+    }
 } DOT  ;
 
 Proof: /* empty */
@@ -111,7 +129,6 @@ Stmt: NUM COL Expr SCOL Reasoning {
     $$.ast_val = $1.ast_val;
     $$.reason_val = $3.reason_val;
     reasoning_check($$.ast_val, $$.reason_val, $3.loc_val);
-    std::cout << yyline;
 }   ;
 
 Reasoning: HYP { 
@@ -138,6 +155,30 @@ Reasoning: HYP {
 }        | IMPLELIM COL NUM COM NUM {
     $$.reason_val = { Reason::IMPL_ELIM, $3.int_val, $5.int_val, 0 };
     $$.loc_val = @1;
+}        | NOTINTRO COL NUM COM NUM COM NUM {
+    $$.reason_val = { Reason::NOT_INTRO, $3.int_val, $5.int_val, $7.int_val };
+    $$.loc_val = @1;
+}        | NOTELIM COL NUM {
+    $$.reason_val = { Reason::NOT_ELIM, $3.int_val, 0, 0 };
+    $$.loc_val = @1;
+}        | ORINTROL COL NUM {
+    $$.reason_val = { Reason::OR_INTRO_L, $3.int_val, 0, 0 };
+    $$.loc_val = @1;
+}        | ORINTROR COL NUM {
+    $$.reason_val = { Reason::OR_INTRO_R, $3.int_val, 0, 0 };
+    $$.loc_val = @1;
+}        | ORELIM COL NUM COM NUM COM NUM {
+    $$.reason_val = { Reason::OR_ELIM, $3.int_val, $5.int_val, $7.int_val };
+    $$.loc_val = @1;
+}        | IFFINTRO COL NUM COM NUM {
+    $$.reason_val = { Reason::IFF_INTRO, $3.int_val, $5.int_val, 0 };
+    $$.loc_val = @1;
+}        | IFFELIML COL NUM COM NUM {
+    $$.reason_val = { Reason::IFF_ELIM_L, $3.int_val, $5.int_val, 0 };
+    $$.loc_val = @1;
+}        | IFFELIMR COL NUM COM NUM {
+    $$.reason_val = { Reason::IFF_ELIM_R, $3.int_val, $5.int_val, 0 };
+    $$.loc_val = @1;
 }        ;
 
 Expr: TERM {
@@ -157,51 +198,86 @@ Expr: TERM {
 
 %%
 
+/**
+ * @brief     Error reporting function
+ *
+ * @param      msg   error message
+ */
 int yyerror(std::string msg) {
-    std::cerr << "error @" << yylloc.first_line << ':' << yylloc.first_column;
-    std::cerr << " - ";
-    std::cerr << yylloc.last_line << ':' << yylloc.last_column << ": ";
-    std::cerr << msg << '\n';
-    exit(0);
+    lyyerror(yylloc, msg);
 }
 
+/**
+ * @brief      Error reporting function
+ *
+ * @param      loc   error location
+ * @param      msg   error message
+ */
 int lyyerror(YYLTYPE loc, std::string msg) {
-    std::cerr << "error @" << loc.first_line << ':' << loc.first_column;
-    std::cerr << " - ";
-    std::cerr << loc.last_line << ':' << loc.last_column << ": ";
-    std::cerr << msg << '\n';
-    exit(0);
+    std::cerr << file_name << ':' << loc.first_line << ':' << loc.first_column
+            << ": " << fg::red << "error: " << fg::reset
+            << msg << '\n';
+
+    std::cerr << std::setw(5) << loc.first_line << " | ";
+    for(std::size_t i = 0; i < yyline.size(); i++) {
+        if (i == (std::size_t)loc.first_column - 1) {
+            std::cerr << fg::red;
+        }
+
+        if (i == (std::size_t)loc.last_column) {
+            std::cerr << fg::reset;
+        }
+
+        std::cerr << yyline[i];
+    }
+
+    std::cerr << fg::reset << '\n';
+
+    has_error_occurred = true;
 }
 
+
+/**
+ * @brief      Checks if a expression logicall follows given the reason
+ *
+ * @param      expr    The expression
+ * @param      reason  The reason
+ * @param      loc     The location
+ */
 void reasoning_check(Ast *expr, Reason reason, YYLTYPE loc) {
     Ast *e1, *e2, *e3;
+    bool flag;
+
     switch(reason.tag) {
         case Reason::HYPOTHESIS:
             if (!ast_equals(*expr, *hypo)) {
-                lyyerror(loc, "Wrong reasoning.");
+                lyyerror(loc, "Statement and hypothesis must match.");
             }
             break;
         case Reason::AND_ELIM_L:
             if(!stmts[reason.step1 - 1]->is_and()) {
-                lyyerror(loc, "Wrong reasoning.");
+                lyyerror(loc, "Statement being infered from must be an and statement.");
+                break;
             }
 
             if(!ast_equals(*stmts[reason.step1 - 1]->left, *expr)) {
-                lyyerror(loc, "Wrong reasoning.");
+                lyyerror(loc, "The left branch of statement being infered from and the current statement must match.");
             }
             break;
         case Reason::AND_ELIM_R:
             if(!stmts[reason.step1 - 1]->is_and()) {
-                lyyerror(loc, "Wrong reasoning.");
+                lyyerror(loc, "Statement being infered from must be an and statement.");
+                break;
             }
 
             if(!ast_equals(*stmts[reason.step1 - 1]->right, *expr)) {
-                lyyerror(loc, "Wrong reasoning.");
+                lyyerror(loc, "The right branch of statement being infered from and the current statement must match.");
             }
             break;
         case Reason::AND_INTRO:
             if(!expr->is_and()) {
                 lyyerror(loc, "Wrong reasoning.");
+                break;
             }
 
             e1 = stmts[reason.step1 - 1];
@@ -226,6 +302,7 @@ void reasoning_check(Ast *expr, Reason reason, YYLTYPE loc) {
 
             if(!expr->is_if()) {
                 lyyerror(loc, "Wrong reasoning.");
+                break;
             }
 
             e1 = stmts[reason.step1 - 1];
@@ -244,6 +321,7 @@ void reasoning_check(Ast *expr, Reason reason, YYLTYPE loc) {
 
             if(!e1->is_if()) {
                 lyyerror(loc, "Wrong Reasoning.");
+                break;
             }
 
             if(!ast_equals(*(e1->left), *e2)) {
@@ -255,6 +333,215 @@ void reasoning_check(Ast *expr, Reason reason, YYLTYPE loc) {
             }
 
             break;
+        case Reason::NOT_INTRO:
+            // std::cout << "here\n";
+            e1 = stmts[reason.step1 - 1];
+            e2 = stmts[reason.step2 - 1];
+            e3 = stmts[reason.step3 - 1];
+            flag = false;
+
+            if (!ast_equals(*e1, *scope.top())) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+
+            if (!e2->is_not() && !e3->is_not()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+
+            if (e2->is_not() && !ast_equals(*(e2->left), *e3)) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+
+            if (e3->is_not() && !ast_equals(*(e3->left), *e2)) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+
+            if (!expr->is_not()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!ast_equals(*(expr->left), *e1)) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+
+            if (!flag) {
+                scope.pop();
+            }
+
+            break;
+        case Reason::NOT_ELIM:
+            e1 = stmts[reason.step1 - 1];
+
+            if (!e1->is_not()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!((e1->left)->is_not())) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!ast_equals(*(e1->left->left), *expr)) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+            break;
+
+        case Reason::OR_INTRO_L:
+            e1 = stmts[reason.step1 - 1];
+
+            if (!expr->is_or()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!ast_equals(*(expr->left), *e1)) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+            break;
+
+         case Reason::OR_INTRO_R:
+            e1 = stmts[reason.step1 - 1];
+
+            if (!expr->is_or()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!ast_equals(*(expr->right), *e1)) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+            }
+            break;
+
+        case Reason::OR_ELIM:
+            e1 = stmts[reason.step1 - 1];
+            e2 = stmts[reason.step2 - 1];
+            e3 = stmts[reason.step3 - 1];
+
+            if (!e1->is_or()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!e2->is_if()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!e3->is_if()) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!ast_equals(*(e1->left), *(e2->left))) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!ast_equals(*(e1->right), *(e3->left))) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            if (!(ast_equals(*(e2->right), *expr) && ast_equals(*(e3->right), *expr))) {
+                lyyerror(loc, "Wrong reasoning.");
+                flag = true;
+                break;
+            }
+
+            break;
+
+        case Reason::IFF_INTRO:
+            if(!expr->is_iff()) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            e1 = stmts[reason.step1 - 1]; // forward
+            e2 = stmts[reason.step2 - 1]; // backward
+
+            if(!e1->is_if()) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            if(!e2->is_if()) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            if(!(ast_equals(*(expr->left), *(e1->left)) && ast_equals(*(expr->right), *(e1->right)))) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            if(!(ast_equals(*(expr->right), *(e2->left)) && ast_equals(*(expr->left), *(e2->right)))) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            break;
+
+        case Reason::IFF_ELIM_R:
+
+            e1 = stmts[reason.step1 - 1];
+            e2 = stmts[reason.step2 - 1];
+
+            if(!e1->is_iff()) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            if(!ast_equals(*(e1->left), *e2)) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            if(!ast_equals(*(e1->right), *expr)) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+            break;
+
+        case Reason::IFF_ELIM_L:
+
+            e1 = stmts[reason.step1 - 1];
+            e2 = stmts[reason.step2 - 1];
+
+            if(!e1->is_iff()) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            if(!ast_equals(*(e1->right), *e2)) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
+            if(!ast_equals(*(e1->left), *expr)) {
+                lyyerror(loc, "Wrong reasoning.");
+                break;
+            }
+
 
         default: {}
     }

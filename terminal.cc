@@ -1,11 +1,7 @@
 #include "terminal.hh"
 
-// ostream& endl(ostream& os)
-//       {  os << '\n';
-//          os.flush();
-//          return os;
-//       }
+std::ostream& fg::red(std::ostream& out) { return out << RED; }
 
-std::ostream& fg::red(std::ostream& os) { return os << RED; }
+std::ostream& fg::green(std::ostream& out) { return out << GREEN; }
 
-std::ostream& reset(std::ostream& os) { return os << RESET; }
+std::ostream& fg::reset(std::ostream& out) { return out << RESET; }

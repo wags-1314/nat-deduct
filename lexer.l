@@ -38,6 +38,22 @@ extern int yyerror(std::string);
 "->I"          { return IMPLINTRO; }
 "ImplElim"     { return IMPLELIM; }
 "->E"          { return IMPLELIM; }
+"NotIntro"     { return NOTINTRO; }
+"~I"           { return NOTINTRO; }
+"NotElim"      { return NOTELIM; }
+"~E"           { return NOTELIM; }
+"OrIntroLeft"  { return ORINTROL; }
+"\\/IL"        { return ORINTROL; }
+"OrIntroRight" { return ORINTROR; }
+"\\/IR"        { return ORINTROR; }
+"OrElim"       { return ORELIM; }
+"\\/E"         { return ORELIM; }
+"IffIntro"     { return IFFINTRO; }
+"<->I"         { return IFFINTRO; }
+"IffElimLeft"  { return IFFELIML; }
+"<->EL"        { return IFFELIML; }
+"IffElimRight" { return IFFELIMR; }
+"<->ER"        { return IFFELIMR; }
 [a-zA-Z]+      { yylval.str_val = std::string(yytext); return TERM; }
 [0-9]+         { yylval.int_val = atoi(yytext); return NUM; }
 "~"            { return NOT; }

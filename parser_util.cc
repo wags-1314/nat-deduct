@@ -66,6 +66,8 @@ std::ostream &operator<<(std::ostream &out, const Ast &node) {
 bool ast_equals(const Ast &op1, const Ast &op2) {
     if (op1.tag == Ast::TERM && op2.tag == Ast::TERM) {
         return op1.term_val == op2.term_val;
+    } else if (op1.tag == Ast::NOT && op2.tag == Ast::NOT) {
+        return ast_equals(*op1.left, *op2.left);
     } else if (op1.tag == op2.tag) {
         return ast_equals(*op1.left, *op2.left) &&
                ast_equals(*op1.right, *op2.right);
@@ -98,6 +100,32 @@ std::ostream &operator<<(std::ostream &out, const Reason &reason) {
             break;
         case Reason::IMPL_ELIM:
             out << "ImplElim: " << reason.step1 << ", " << reason.step2;
+            break;
+        case Reason::NOT_INTRO:
+            out << "NotIntro: " << reason.step1 << ", " << reason.step2 << ", "
+                << reason.step3;
+            break;
+        case Reason::NOT_ELIM:
+            out << "NotElim: " << reason.step1;
+            break;
+        case Reason::OR_INTRO_L:
+            out << "OrIntroLeft: " << reason.step1;
+            break;
+        case Reason::OR_INTRO_R:
+            out << "OrIntroRight: " << reason.step1;
+            break;
+        case Reason::OR_ELIM:
+            out << "OrElim: " << reason.step1 << ", " << reason.step2 << ", "
+                << reason.step3;
+            break;
+        case Reason::IFF_INTRO:
+            out << "IffIntro: " << reason.step1 << ", " << reason.step2;
+            break;
+        case Reason::IFF_ELIM_R:
+            out << "IffElimR: " << reason.step1 << ", " << reason.step2;
+            break;
+        case Reason::IFF_ELIM_L:
+            out << "IffElimL: " << reason.step1 << ", " << reason.step2;
             break;
     }
 
