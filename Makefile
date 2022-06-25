@@ -1,6 +1,10 @@
 input_file = input.in
 output_exe = main
 
+install:
+	apt-get install bison
+	apt-get install flex
+
 $(output_exe): main.cc parser.y lexer.l parser_util.cc
 	bison -d parser.y -o parser.cc -x
 	flex lexer.l
